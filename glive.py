@@ -65,7 +65,7 @@ class Glive:
 
         self._audio_pixbuf = None
 
-        self._detect_camera()
+        self._has_camera = True
 
         self._pipeline = gst.Pipeline("Record")
         self._create_photobin()
@@ -80,27 +80,6 @@ class Glive:
         bus = self._pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect('message', self._bus_message_handler)
-
-    def _detect_camera(self):
-        v4l2src = gst.element_factory_make('v4l2src')
-        if v4l2src.props.device_name is None:
-            return
-
-        self._has_camera = True
-
-        # Figure out if we can place a framerate limit on the v4l2 element,
-        # which in theory will make it all the way down to the hardware.
-        # ideally, we should be able to do this by checking caps. However, I
-        # can't find a way to do this (at this time, XO-1 cafe camera driver
-        # doesn't support framerate changes, but gstreamer caps suggest
-        # otherwise)
-        pipeline = gst.Pipeline()
-        caps = gst.Caps('video/x-raw-yuv,framerate=10/1')
-        fsink = gst.element_factory_make('fakesink')
-        pipeline.add(v4l2src, fsink)
-        v4l2src.link(fsink, caps)
-        self._can_limit_framerate = pipeline.set_state(gst.STATE_PAUSED) != gst.STATE_CHANGE_FAILURE
-        pipeline.set_state(gst.STATE_NULL)
 
     def get_has_camera(self):
         return self._has_camera
@@ -233,9 +212,9 @@ class Glive:
         # on the v4l2src so that it gets communicated all the way down to the
         # camera level
         if self._can_limit_framerate:
-            srccaps = gst.Caps('video/x-raw-yuv,framerate=10/1')
+            srccaps = gst.Caps('video/x-raw-yuv,width=640,height=480,framerate=10/1')
         else:
-            srccaps = gst.Caps('video/x-raw-yuv')
+            srccaps = gst.Caps('video/x-raw-yuv,width=640,height=480')
 
         # we attempt to limit the framerate on the v4l2src directly, but we
         # can't trust this: perhaps we are falling behind in our capture,
@@ -259,8 +238,7 @@ class Glive:
         tee.link(queue)
 
         self._xvsink = gst.element_factory_make("xvimagesink", "xsink")
-        self._xv_available = self._xvsink.set_state(gst.STATE_PAUSED) != gst.STATE_CHANGE_FAILURE
-        self._xvsink.set_state(gst.STATE_NULL)
+        self._xv_available = True
 
         # http://thread.gmane.org/gmane.comp.video.gstreamer.devel/29644
         self._xvsink.set_property("sync", False)
