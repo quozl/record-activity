@@ -160,6 +160,7 @@ class Glive:
             return
 
         self._pipeline.set_state(Gst.State.NULL)  # synchronous
+        self._pixbuf = None
         self.activity.set_glive_sink(None)
 
     def _get_state(self):
@@ -168,13 +169,13 @@ class Glive:
     def take_photo(self):
         logger.debug('take_photo')
         if self._cameras:
-            self.model.save_photo(self._pixbuf)
+            self.model.save_photo(self._pixbuf.copy())
 
     def record_audio(self):
         logger.debug('record_audio')
 
         # take a photograph
-        self._audio_pixbuf = self._pixbuf
+        self._audio_pixbuf = self._pixbuf.copy()
         self.model.still_ready(self._audio_pixbuf)
 
         # make a pipeline to record and encode audio to file
@@ -229,6 +230,7 @@ class Glive:
 
         # save audio file
         self.model.save_audio(ogg, self._audio_pixbuf)
+        self._audio_pixbuf = None
 
         # remove the audio pipeline
         self._audio.get_bus().remove_signal_watch()
@@ -245,7 +247,7 @@ class Glive:
         self._pipeline.set_state(Gst.State.NULL)  # synchronous
 
         # take a photograph
-        self._video_pixbuf = self._pixbuf
+        self._video_pixbuf = self._pixbuf.copy()
 
         # make a pipeline to record video and audio to file
         args = {}
@@ -327,6 +329,7 @@ class Glive:
 
         # save video file
         self.model.save_video(ogv, self._video_pixbuf)
+        self._video_pixbuf = None
 
         # remove the video pipeline
         self._video.get_bus().remove_signal_watch()
